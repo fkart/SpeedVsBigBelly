@@ -37,8 +37,12 @@ canvas{border:3px solid #333;background:#f8f9fa;border-radius:8px;display:block}
 @keyframes critFlash{0%,100%{background:#f8f9fa}50%{background:#ffd700}}
 .powerup{position:absolute;top:45px;right:10px;background:linear-gradient(135deg,#FF6B6B,#FFD93D);color:#fff;padding:8px 12px;border-radius:8px;font-weight:bold;font-size:14px;display:none;box-shadow:0 4px 8px rgba(0,0,0,0.3);animation:powerupPulse 0.5s infinite}
 @keyframes powerupPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
-.card-hand{position:absolute;top:-18px;right:15px;display:flex;gap:3px;z-index:100}
-.card-item{width:25px;height:35px;background:linear-gradient(135deg,#FFD700,#FFA500);border:2px solid #000;border-radius:4px;box-shadow:0 3px 6px rgba(0,0,0,0.4),0 5px 15px rgba(0,0,0,0.25);transition:all 0.3s;position:relative}
+.card-hand{position:absolute;top:-30px;right:15px;display:flex;gap:3px;z-index:100}
+.card-item{width:25px;height:35px;background:linear-gradient(135deg,#FFD700,#FFA500);border:2px solid #000;border-radius:0 0 4px 4px;box-shadow:0 3px 6px rgba(0,0,0,0.4),0 5px 15px rgba(0,0,0,0.25);transition:all 0.3s;position:relative;cursor:pointer}
+.card-item:hover{transform:translateY(-3px) scale(1.1)!important}
+.card-item .tooltip{visibility:hidden;opacity:0;position:absolute;bottom:100%;left:50%;transform:translateX(-50%) translateY(-5px);background:rgba(0,0,0,0.95);color:#fff;padding:8px 12px;border-radius:8px;font-size:11px;white-space:nowrap;z-index:1000;transition:opacity 0.2s,visibility 0.2s;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.5);max-width:200px;white-space:normal;text-align:center;line-height:1.3}
+.card-item .tooltip:after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:rgba(0,0,0,0.95)}
+.card-item:hover .tooltip,.card-item.show-tooltip .tooltip{visibility:visible;opacity:1}
 .card-item:nth-child(1){transform:rotate(-8deg)}
 .card-item:nth-child(2){transform:rotate(-4deg)}
 .card-item:nth-child(3){transform:rotate(0deg)}
@@ -114,8 +118,11 @@ canvas{border:3px solid #333;background:#f8f9fa;border-radius:8px;display:block}
 </div>
 </div>
 </div>
-<div id="timerBox" onclick="" style="color:#fff;font-size:16px;padding:6px 12px;background:#95a5a6;text-align:center;box-shadow:0 4px 8px rgba(0,0,0,0.2),0 6px 20px rgba(0,0,0,0.15);border:1px solid #e0e0e0;border-top:none;border-radius:0 0 10px 10px;display:inline-block;min-height:40px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:bold">
-Start
+<div style="display:flex;gap:8px;align-items:center;justify-content:center">
+<div id="timerBox" style="color:#333;font-size:16px;padding:1px 10px;background:#fff;text-align:center;box-shadow:0 4px 8px rgba(0,0,0,0.2),0 6px 20px rgba(0,0,0,0.15);border:1px solid #e0e0e0;border-radius:0 0 10px 10px;display:inline-flex;align-items:center;justify-content:center;font-weight:bold;gap:10px;min-width:110px;height:28px">
+<span id="timerText" style="min-width:40px;text-align:center">10</span>
+<button id="pauseBtn" onclick="togglePause()" style="padding:1px 8px;font-size:16px;cursor:pointer;background:#34495e;color:#fff;border:none;border-radius:6px;min-width:32px;height:20px;line-height:1">⏸</button>
+</div>
 </div>
 <div style="width:100%;height:25px;background:rgba(255,255,255,0.2);border-radius:10px;overflow:hidden;position:relative;padding:2px;margin-top:8px">
 <div style="position:relative;width:100%;height:100%;background:#ddd;border-radius:8px;overflow:hidden">
@@ -196,6 +203,11 @@ var p1Wins=0,p2Wins=0,totalRaces=0;
 var p1Cards=[],p2Cards=[];
 var p1PowerupActive=false,p2PowerupActive=false;
 var p1PowerupEnd=0,p2PowerupEnd=0;
+var isPaused=false;
+var countdown=0;
+var countdownInterval=null;
+var pauseStartTime=0;
+var totalPausedTime=0;
 var p1PowerupType='',p2PowerupType='';
 var p1InstantCooldown=0,p2InstantCooldown=0;
 var cardRevealQueue=[];
@@ -295,46 +307,46 @@ var card2=document.getElementById('card2-'+i);
 if(card1){
 if(p1CardsUsed[i]){
 card1.classList.add('used');
-card1.title='';
-card1.style.cursor='default';
+card1.innerHTML='';
 card1.onclick=null;
 }else{
 card1.classList.remove('used');
 var cardIndex=i-(5-p1Cards.length);
 if(cardIndex>=0&&cardIndex<p1Cards.length){
 var cardType=p1Cards[cardIndex];
-card1.title=cardDescriptions[cardType]||cardType.toUpperCase();
-card1.style.cursor='pointer';
-card1.onclick=(function(type){
-return function(){
-if(!win){
-showCardReveal(1,type);
-}
+var desc=cardDescriptions[cardType]||cardType.toUpperCase();
+card1.innerHTML='<div class="tooltip">'+desc+'</div>';
+card1.onclick=(function(elem){
+return function(e){
+e.stopPropagation();
+document.querySelectorAll('.card-item').forEach(function(c){c.classList.remove('show-tooltip')});
+elem.classList.add('show-tooltip');
+setTimeout(function(){elem.classList.remove('show-tooltip')},3000);
 };
-})(cardType);
+})(card1);
 }
 }
 }
 if(card2){
 if(p2CardsUsed[i]){
 card2.classList.add('used');
-card2.title='';
-card2.style.cursor='default';
+card2.innerHTML='';
 card2.onclick=null;
 }else{
 card2.classList.remove('used');
 var cardIndex=i-(5-p2Cards.length);
 if(cardIndex>=0&&cardIndex<p2Cards.length){
 var cardType=p2Cards[cardIndex];
-card2.title=cardDescriptions[cardType]||cardType.toUpperCase();
-card2.style.cursor='pointer';
-card2.onclick=(function(type){
-return function(){
-if(!win){
-showCardReveal(2,type);
-}
+var desc=cardDescriptions[cardType]||cardType.toUpperCase();
+card2.innerHTML='<div class="tooltip">'+desc+'</div>';
+card2.onclick=(function(elem){
+return function(e){
+e.stopPropagation();
+document.querySelectorAll('.card-item').forEach(function(c){c.classList.remove('show-tooltip')});
+elem.classList.add('show-tooltip');
+setTimeout(function(){elem.classList.remove('show-tooltip')},3000);
 };
-})(cardType);
+})(card2);
 }
 }
 }
@@ -1118,7 +1130,9 @@ p1CardsUsed[4]=true;
 var lastCard=p1Cards[p1Cards.length-1];
 p1Cards.splice(p1Cards.length-1,1);
 p1Cards.unshift(lastCard);
-logEvent('🔄 Desperation! Last card moved to front','p1');
+logEvent('🔄 Desperation! Playing special card','p1');
+usePowerup(1);
+p1InstantCooldown=Date.now()+3000;
 updateCardDisplay();
 }
 if(isLosing2&&p2Cards.length>0&&!p2CardsUsed[4]){
@@ -1126,7 +1140,9 @@ p2CardsUsed[4]=true;
 var lastCard=p2Cards[p2Cards.length-1];
 p2Cards.splice(p2Cards.length-1,1);
 p2Cards.unshift(lastCard);
-logEvent('🔄 Desperation! Last card moved to front','p2');
+logEvent('🔄 Desperation! Playing special card','p2');
+usePowerup(2);
+p2InstantCooldown=Date.now()+3000;
 updateCardDisplay();
 }
 for(var i=0;i<5;i++){
@@ -1232,9 +1248,9 @@ document.getElementById('progtext2').textContent=progress2.toFixed(1)+'%';
 }
 
 function draw(){
-if(!run||win)return;
-gameTime=(Date.now()-startTime)/1000;
-document.getElementById('timer').textContent=gameTime.toFixed(1);
+if(!run||win||isPaused)return;
+gameTime=(Date.now()-startTime-totalPausedTime)/1000;
+document.getElementById('timerText').textContent=gameTime.toFixed(1);
 ctx1.clearRect(0,0,W,H);
 ctx2.clearRect(0,0,W,H);
 if(b1Stopped&&Date.now()>stopEnd1){
@@ -1328,14 +1344,9 @@ document.getElementById('p1wins').textContent=p1Wins;
 document.getElementById('p2wins').textContent=p2Wins;
 document.getElementById('powerup1').style.display='none';
 document.getElementById('powerup2').style.display='none';
-var timerBox=document.getElementById('timerBox');
-timerBox.textContent='Next';
-timerBox.onclick=reset;
-timerBox.style.background='#f093fb';
-timerBox.style.color='#fff';
-timerBox.style.cursor='pointer';
 makeConfetti(['#667eea','#764ba2','#FFD700','#FFF']);
 drawConfetti();
+setTimeout(reset,3000);
 }else if(b2.y>=H-50&&allObs2Cleared&&!win){
 win='Big Belly Wins!';
 run=0;
@@ -1347,14 +1358,9 @@ document.getElementById('p1wins').textContent=p1Wins;
 document.getElementById('p2wins').textContent=p2Wins;
 document.getElementById('powerup1').style.display='none';
 document.getElementById('powerup2').style.display='none';
-var timerBox=document.getElementById('timerBox');
-timerBox.textContent='Next';
-timerBox.onclick=reset;
-timerBox.style.background='#f093fb';
-timerBox.style.color='#fff';
-timerBox.style.cursor='pointer';
 makeConfetti(['#f093fb','#f5576c','#FFD700','#FFF']);
 drawConfetti();
+setTimeout(reset,3000);
 }
 if(run)requestAnimationFrame(draw);
 }
@@ -1365,6 +1371,8 @@ p1PowerupActive=false;
 p2PowerupActive=false;
 p1InstantCooldown=0;
 p2InstantCooldown=0;
+isPaused=false;
+totalPausedTime=0;
 ceiling1=20;
 ceiling2=20;
 ceilingEnd1=0;
@@ -1385,7 +1393,6 @@ document.getElementById('powerup1').style.display='none';
 document.getElementById('powerup2').style.display='none';
 document.getElementById('winner1').classList.remove('show');
 document.getElementById('winner2').classList.remove('show');
-document.getElementById('timerBox').innerHTML='<div style="text-align:center"><div style="font-size:16px;font-weight:bold" id="timer">0.0</div><div style="font-size:9px;color:#666">Race Time (s)</div></div>';
 var startX1=130+Math.random()*40;
 var startX2=130+Math.random()*40;
 var startVy1=sp1+(Math.random()-0.5)*0.5;
@@ -1403,11 +1410,9 @@ p2=[];
 confettiArr=[];
 ctxConf.clearRect(0,0,cf.width,cf.height);
 win='';
-run=1;
-startTime=Date.now();
+run=0;
 gameTime=0;
-document.getElementById('timer').textContent='0.0';
-draw();
+startRace();
 }
 
 document.addEventListener('keydown',function(e){
@@ -1423,6 +1428,12 @@ usePowerup(2);
 }
 });
 
+document.addEventListener('click',function(e){
+if(!e.target.closest('.card-item')){
+document.querySelectorAll('.card-item').forEach(function(c){c.classList.remove('show-tooltip')});
+}
+});
+
 generateCards();
 o1=makeObs();
 o2=makeObs();
@@ -1431,23 +1442,63 @@ originalTotalHp2=0;
 for(var i=0;i<o1.length;i++)originalTotalHp1+=o1[i].maxHp;
 for(var i=0;i<o2.length;i++)originalTotalHp2+=o2[i].maxHp;
 run=0;
-var timerBox=document.getElementById('timerBox');
-timerBox.textContent='Start';
-timerBox.onclick=startRace;
-timerBox.style.background='#95a5a6';
-timerBox.style.color='#fff';
-timerBox.style.cursor='pointer';
+startRace();
 
-function startRace(){
-run=1;
-startTime=Date.now();
+function togglePause(){
+if(win)return;
+isPaused=!isPaused;
+var pauseBtn=document.getElementById('pauseBtn');
+if(isPaused){
+if(countdown>0){
+clearInterval(countdownInterval);
+}
+pauseStartTime=Date.now();
+pauseBtn.textContent='▶';
+pauseBtn.style.background='#27ae60';
+}else{
+if(countdown>0){
 var timerBox=document.getElementById('timerBox');
-timerBox.innerHTML='<div id="timer" style="font-size:16px;font-weight:bold">0.0</div>';
-timerBox.onclick=null;
+countdownInterval=setInterval(function(){
+countdown--;
+document.getElementById('timerText').textContent=countdown;
+if(countdown<=0){
+clearInterval(countdownInterval);
+run=1;
+isPaused=false;
+startTime=Date.now();
 timerBox.style.background='#fff';
 timerBox.style.color='#333';
-timerBox.style.cursor='default';
 draw();
+}
+},1000);
+}else{
+totalPausedTime+=Date.now()-pauseStartTime;
+}
+pauseBtn.textContent='⏸';
+pauseBtn.style.background='#34495e';
+draw();
+}
+}
+
+function startRace(){
+countdown=10;
+var timerBox=document.getElementById('timerBox');
+timerBox.style.background='linear-gradient(135deg,#667eea,#f5576c)';
+timerBox.style.color='#fff';
+countdownInterval=setInterval(function(){
+countdown--;
+document.getElementById('timerText').textContent=countdown;
+if(countdown<=0){
+clearInterval(countdownInterval);
+run=1;
+isPaused=false;
+startTime=Date.now();
+timerBox.style.background='#fff';
+timerBox.style.color='#333';
+totalPausedTime=0;
+draw();
+}
+},1000);
 }
 
 </script>
