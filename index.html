@@ -52,15 +52,13 @@ canvas{border:3px solid #333;background:#f8f9fa;border-radius:8px;display:block}
 .card-item.used{opacity:0;transform:translateY(-20px) scale(0.5) !important;pointer-events:none}
 .timeline-center{color:#fff;font-size:10px;height:100%;overflow:hidden;display:flex;flex-direction:column}
 .timeline-center h3{margin:0 0 12px 0;font-size:16px;text-align:center;border-bottom:2px solid #FFD700;padding-bottom:6px;color:#FFD700;flex-shrink:0}
-.timeline-content{position:relative;flex:1;padding:10px;overflow-y:auto}
-.timeline-item{position:relative;margin:8px 0;padding:8px 10px;border-radius:6px;font-size:10px;line-height:1.4;white-space:normal;word-wrap:break-word;box-shadow:0 2px 6px rgba(0,0,0,0.3);display:grid;grid-template-columns:50px 1fr;gap:10px;align-items:center}
-.timeline-p1{background:linear-gradient(135deg,rgba(102,126,234,0.9),rgba(118,75,162,0.9))}
-.timeline-p1:before{content:'';position:absolute;left:-20px;top:50%;transform:translateY(-50%);width:20px;height:3px;background:#667eea;box-shadow:0 0 8px rgba(102,126,234,0.8)}
+.timeline-content{position:relative;flex:1;padding:10px 20px;overflow-y:auto}
+.timeline-item{position:relative;margin:8px 0;padding:8px 10px;border-radius:12px;font-size:10px;line-height:1.4;white-space:normal;word-wrap:break-word;box-shadow:0 2px 6px rgba(0,0,0,0.3);display:grid;grid-template-columns:50px 1fr;gap:10px;align-items:center;max-width:280px}
+.timeline-p1{background:linear-gradient(135deg,rgba(102,126,234,0.9),rgba(118,75,162,0.9));margin-left:0;margin-right:auto}
 .timeline-p1 .timeline-content{text-align:center}
-.timeline-p2{background:linear-gradient(135deg,rgba(240,147,251,0.9),rgba(245,87,108,0.9))}
-.timeline-p2:after{content:'';position:absolute;right:-20px;top:50%;transform:translateY(-50%);width:20px;height:3px;background:#f5576c;box-shadow:0 0 8px rgba(245,87,108,0.8)}
+.timeline-p2{background:linear-gradient(135deg,rgba(240,147,251,0.9),rgba(245,87,108,0.9));margin-left:auto;margin-right:0}
 .timeline-p2 .timeline-content{text-align:center}
-.timeline-win{background:linear-gradient(135deg,rgba(255,215,0,0.95),rgba(255,193,7,0.95));text-align:center}
+.timeline-win{background:linear-gradient(135deg,rgba(255,215,0,0.95),rgba(255,193,7,0.95));text-align:center;margin-left:auto;margin-right:auto;max-width:320px}
 .timeline-win .timeline-content{text-align:center;font-size:11px;font-weight:bold}
 .timeline-time{color:#FFD700;font-weight:bold;font-size:9px;text-shadow:0 1px 2px rgba(0,0,0,0.5);text-align:left}
 .container{position:relative}
@@ -69,6 +67,14 @@ canvas{border:3px solid #333;background:#f8f9fa;border-radius:8px;display:block}
 .card-reveal h2{font-size:28px;margin:0 0 12px 0;line-height:1.2}
 .card-reveal p{font-size:16px;margin:8px 0;line-height:1.4}
 .card-reveal .effect{font-size:18px;font-weight:bold;margin:12px 0;padding:12px;border-radius:8px;background:rgba(255,255,255,0.1);line-height:1.3}
+#commentary{position:fixed;top:280px;left:50%;padding:15px 20px;border-radius:20px;font-size:14px;font-weight:bold;z-index:10000;opacity:0;transition:opacity 0.3s,transform 0.3s;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,0.4);max-width:350px;text-align:center;line-height:1.4;border:3px solid rgba(255,255,255,0.3)}
+#commentary.p1-bubble{transform:translateX(-50%) translateX(-30px) translateY(-10px);background:linear-gradient(135deg,#667eea,#5a67d8);color:#fff}
+#commentary.p2-bubble{transform:translateX(-50%) translateX(30px) translateY(-10px);background:linear-gradient(135deg,#f5576c,#f093fb);color:#fff}
+#commentary.system-banner{transform:translateX(-50%) translateY(-10px);background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;text-align:center;border-radius:12px;text-shadow:none;border-color:#FFA500}
+#commentary.show{opacity:1}
+#commentary.p1-bubble.show{transform:translateX(-50%) translateX(-30px) translateY(0)}
+#commentary.p2-bubble.show{transform:translateX(-50%) translateX(30px) translateY(0)}
+#commentary.system-banner.show{transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
@@ -79,6 +85,7 @@ canvas{border:3px solid #333;background:#f8f9fa;border-radius:8px;display:block}
 <div class="effect" id="revealEffect"></div>
 <p id="revealDescription"></p>
 </div>
+<div id="commentary"></div>
 <h1>Speed or Power</h1>
 <table style="border-collapse:collapse;margin:10px auto">
 <tr>
@@ -223,6 +230,68 @@ var pendingSwap=false,swapInitiator=0;
 var b1Stopped=false,b2Stopped=false,stopEnd1=0,stopEnd2=0;
 var chaosActive=false,chaosEnd=0,chaosInitiator=0;
 var originalTotalHp1=0,originalTotalHp2=0;
+var lastCritTime1=0,lastCritTime2=0;
+var closeRaceLogged=false;
+var speedHistory1=[],speedHistory2=[];
+var SPEED_SMOOTH_FRAMES=8;
+
+function getRandomWinMessage(player,loser,timeDiff){
+var messages=[
+player+' destroyed '+loser+'! Absolute demolition! 🔥',
+player+' wins by '+timeDiff.toFixed(1)+'s. '+loser+' needs more cardio! 💪',
+player+' crosses the line! '+loser+' still trying to find their way out! 🏆',
+'Victory for '+player+'! '+loser+' brought a spoon to a knife fight! 🗡️',
+player+' wins! '+loser+' should\'ve read the tutorial! 📖',
+'Get wrecked, '+loser+'! '+player+' is the new champion! 👑',
+player+' barely breaks a sweat. '+loser+' is sweating bullets! 💦',
+player+' wins! '+loser+', better luck next time... maybe! 🎲'
+];
+return messages[Math.floor(Math.random()*messages.length)];
+}
+
+function getCritReaction(){
+var reactions=[
+'BOOM! That hurt! 💥',
+'CRITICAL HIT! Someone call 911! 🚑',
+'OUCH! That\'s gonna leave a mark! 😱',
+'SMASH! The crowd goes wild! 🎉',
+'WHAM! Did you see that?! 👀',
+'KABOOM! Physics just exploded! ⚡',
+'POW! That obstacle never saw it coming! 💫',
+'CRUNCH! Savage damage! 🔨'
+];
+return reactions[Math.floor(Math.random()*reactions.length)];
+}
+
+function getCloseRaceComment(diff){
+if(diff<5){
+return 'This is TIGHT! Only '+diff.toFixed(1)+'% difference! 🔥';
+}else if(diff<10){
+return 'Getting close! '+diff.toFixed(1)+'% gap - anything can happen! ⚡';
+}
+return '';
+}
+
+var commentaryTimeout=null;
+function showCommentary(message,source){
+var commentaryBox=document.getElementById('commentary');
+commentaryBox.textContent=message;
+commentaryBox.className='';
+if(source==='p1'){
+commentaryBox.className='p1-bubble';
+}else if(source==='p2'){
+commentaryBox.className='p2-bubble';
+}else{
+commentaryBox.className='system-banner';
+}
+setTimeout(function(){
+commentaryBox.classList.add('show');
+},10);
+if(commentaryTimeout)clearTimeout(commentaryTimeout);
+commentaryTimeout=setTimeout(function(){
+commentaryBox.classList.remove('show');
+},3000);
+}
 
 function logEvent(message,type,cardType){
 var time=(Date.now()-startTime)/1000;
@@ -666,6 +735,9 @@ ball.vy=-Math.abs(ball.vy)*0.8;
 }else{
 ball.vy=-Math.abs(ball.vy)*0.7;
 }
+if(activeCeiling>20){
+ball.vy=-(Math.abs(ball.vy)+8);
+}
 }
 break;
 }
@@ -714,6 +786,10 @@ var angle=Math.random()*Math.PI*2;
 var speed=Math.random()*4+2;
 partArr.push({x:ball.x,y:obs.y+obs.h/2,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:20,col:'#FFD700'});
 }
+if(Date.now()-lastCritTime1>3000){
+showCommentary(getCritReaction(),'p1');
+lastCritTime1=Date.now();
+}
 }else{
 c2.classList.add('crit-flash');
 setTimeout(function(){c2.classList.remove('crit-flash')},300);
@@ -721,6 +797,10 @@ for(var j=0;j<8;j++){
 var angle=Math.random()*Math.PI*2;
 var speed=Math.random()*4+2;
 partArr.push({x:ball.x,y:obs.y+obs.h/2,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:20,col:'#FFD700'});
+}
+if(Date.now()-lastCritTime2>3000){
+showCommentary(getCritReaction(),'p2');
+lastCritTime2=Date.now();
 }
 }
 }else{
@@ -845,6 +925,7 @@ document.getElementById('powerup2').textContent='SABOTAGED! 60% Speed';
 document.getElementById('powerup2').style.background='linear-gradient(135deg,#e74c3c,#c0392b)';
 document.getElementById('powerup2').style.display='block';
 setTimeout(function(){document.getElementById('powerup2').style.display='none'},5000);
+setTimeout(function(){showCommentary('Big Belly: "What just happened?!" 😭','p1')},500);
 }else if(cardType==='fortify'){
 for(var i=0;i<o1.length;i++){
 if(!o1[i].destroyed){
@@ -867,6 +948,7 @@ swapInitiator=1;
 document.getElementById('powerup1').textContent='SWAP! Waiting for safe position...';
 document.getElementById('powerup1').style.background='linear-gradient(135deg,#3498db,#2980b9)';
 p1PowerupActive=false;
+setTimeout(function(){showCommentary('Speedy: "UNO reverse!" 🎴','p1')},300);
 }else if(cardType==='stop'){
 b2Stopped=true;
 stopEnd2=Date.now()+3000;
@@ -879,6 +961,7 @@ document.getElementById('powerup2').style.background='linear-gradient(135deg,#34
 document.getElementById('powerup2').style.display='block';
 p1PowerupActive=false;
 }else if(cardType==='pressure'){
+if(ceiling1<=20){
 ceiling1=220;
 ceilingEnd1=Date.now()+5000;
 if(b1.y<b1.r+ceiling1){
@@ -887,6 +970,11 @@ b1.vy=Math.abs(b1.vy)+3;
 }
 document.getElementById('powerup1').textContent='PRESSURE! Ceiling Lowered';
 document.getElementById('powerup1').style.background='linear-gradient(135deg,#e91e63,#880e4f)';
+}else{
+document.getElementById('powerup1').textContent='Ceiling Already Active!';
+document.getElementById('powerup1').style.background='linear-gradient(135deg,#95a5a6,#7f8c8d)';
+p1PowerupActive=false;
+}
 }else if(cardType==='repair'){
 for(var i=0;i<o2.length;i++){
 if(!o2[i].destroyed){
@@ -913,6 +1001,7 @@ b2.dmg*=0.7;
 document.getElementById('powerup1').textContent='SHRINK! Enemy -30% Size';
 document.getElementById('powerup1').style.background='linear-gradient(135deg,#9b59b6,#8e44ad)';
 p1PowerupActive=false;
+setTimeout(function(){showCommentary('Speedy: "Size matters, buddy!" 😈','p1')},400);
 }else if(cardType==='chaos'){
 chaosActive=true;
 chaosEnd=Date.now()+8000;
@@ -942,6 +1031,7 @@ document.getElementById('powerup2').textContent='FROZEN! Can\'t move 5s';
 document.getElementById('powerup2').style.background='linear-gradient(135deg,#00d2ff,#3a7bd5)';
 document.getElementById('powerup2').style.display='block';
 p1PowerupActive=false;
+setTimeout(function(){showCommentary('Speedy: "Chill out!" ❄️','p1')},600);
 }else if(cardType==='rage'){
 p1PowerupType='mega';
 p1PowerupActive=true;
@@ -1001,6 +1091,7 @@ document.getElementById('powerup1').textContent='SABOTAGED! 60% Damage';
 document.getElementById('powerup1').style.background='linear-gradient(135deg,#e74c3c,#c0392b)';
 document.getElementById('powerup1').style.display='block';
 setTimeout(function(){document.getElementById('powerup1').style.display='none'},5000);
+setTimeout(function(){showCommentary('Speedy: "Not fair!" 😤','p2')},500);
 }else if(cardType==='fortify'){
 for(var i=0;i<o2.length;i++){
 if(!o2[i].destroyed){
@@ -1023,6 +1114,7 @@ swapInitiator=2;
 document.getElementById('powerup2').textContent='SWAP! Waiting for safe position...';
 document.getElementById('powerup2').style.background='linear-gradient(135deg,#3498db,#2980b9)';
 p2PowerupActive=false;
+setTimeout(function(){showCommentary('Big Belly: "Trade ya!" 🔄','p2')},300);
 }else if(cardType==='stop'){
 b1Stopped=true;
 stopEnd1=Date.now()+3000;
@@ -1035,6 +1127,7 @@ document.getElementById('powerup1').style.background='linear-gradient(135deg,#34
 document.getElementById('powerup1').style.display='block';
 p2PowerupActive=false;
 }else if(cardType==='pressure'){
+if(ceiling2<=20){
 ceiling2=220;
 ceilingEnd2=Date.now()+5000;
 if(b2.y<b2.r+ceiling2){
@@ -1043,6 +1136,11 @@ b2.vy=Math.abs(b2.vy)+3;
 }
 document.getElementById('powerup2').textContent='PRESSURE! Ceiling Lowered';
 document.getElementById('powerup2').style.background='linear-gradient(135deg,#e91e63,#880e4f)';
+}else{
+document.getElementById('powerup2').textContent='Ceiling Already Active!';
+document.getElementById('powerup2').style.background='linear-gradient(135deg,#95a5a6,#7f8c8d)';
+p2PowerupActive=false;
+}
 }else if(cardType==='repair'){
 for(var i=0;i<o1.length;i++){
 if(!o1[i].destroyed){
@@ -1069,6 +1167,7 @@ b1.dmg*=0.7;
 document.getElementById('powerup2').textContent='SHRINK! Enemy -30% Size';
 document.getElementById('powerup2').style.background='linear-gradient(135deg,#9b59b6,#8e44ad)';
 p2PowerupActive=false;
+setTimeout(function(){showCommentary('Big Belly: "Small things, big trouble!" 👹','p2')},400);
 }else if(cardType==='chaos'){
 chaosActive=true;
 chaosEnd=Date.now()+8000;
@@ -1098,6 +1197,7 @@ document.getElementById('powerup1').textContent='FROZEN! Can\'t move 5s';
 document.getElementById('powerup1').style.background='linear-gradient(135deg,#00d2ff,#3a7bd5)';
 document.getElementById('powerup1').style.display='block';
 p2PowerupActive=false;
+setTimeout(function(){showCommentary('Big Belly: "Ice ice baby!" 🧊','p2')},600);
 }else if(cardType==='rage'){
 p2PowerupType='mega';
 p2PowerupActive=true;
@@ -1122,6 +1222,14 @@ setTimeout(function(){document.getElementById('powerup2').style.display='none'},
 function checkPowerupAI(){
 var progress1=(b1.totalDmg/originalTotalHp1)*100;
 var progress2=(b2.totalDmg/originalTotalHp2)*100;
+var diff=Math.abs(progress1-progress2);
+if(!closeRaceLogged&&progress1>30&&progress2>30&&diff<10){
+var comment=getCloseRaceComment(diff);
+if(comment){
+showCommentary(comment,'system');
+closeRaceLogged=true;
+}
+}
 var instantCards=['fortify','reflect','swap','repair','corrupt','shrink','gravity','freeze'];
 var isLosing1=progress1<progress2-10;
 var isLosing2=progress2<progress1-10;
@@ -1226,7 +1334,10 @@ if(p2PowerupActive&&Date.now()>p2PowerupEnd)p2PowerupActive=false;
 }
 
 function updateStats(){
-document.getElementById('sp1').textContent=(Math.abs(b1.vy)/5).toFixed(2)+'x';
+speedHistory1.push(Math.abs(b1.vy)/5);
+if(speedHistory1.length>SPEED_SMOOTH_FRAMES)speedHistory1.shift();
+var avgSpeed1=speedHistory1.reduce(function(a,b){return a+b},0)/speedHistory1.length;
+document.getElementById('sp1').textContent=avgSpeed1.toFixed(2)+'x';
 var dmg1Text=b1.dmg.toFixed(1);
 if(p1PowerupActive)dmg1Text+=' (+'+((b1.dmg*2.5).toFixed(1))+' \u26A1)';
 document.getElementById('dm1').textContent=dmg1Text;
@@ -1239,8 +1350,11 @@ var p2Width=total>0?(progress2/total)*100:50;
 document.getElementById('progbar1').style.width=p1Width+'%';
 document.getElementById('progbar2').style.width=p2Width+'%';
 document.getElementById('progtext1').textContent=progress1.toFixed(1)+'%';
-var speed2Text=(Math.abs(b2.vy)/5).toFixed(2)+'x';
-if(p2PowerupActive)speed2Text+=' (+'+((Math.abs(b2.vy)*2.5/5).toFixed(2))+'x \u26A1)';
+speedHistory2.push(Math.abs(b2.vy)/5);
+if(speedHistory2.length>SPEED_SMOOTH_FRAMES)speedHistory2.shift();
+var avgSpeed2=speedHistory2.reduce(function(a,b){return a+b},0)/speedHistory2.length;
+var speed2Text=avgSpeed2.toFixed(2)+'x';
+if(p2PowerupActive)speed2Text+=' (+'+(avgSpeed2*2.5).toFixed(2)+'x \u26A1)';
 document.getElementById('sp2').textContent=speed2Text;
 document.getElementById('dm2').textContent=b2.dmg.toFixed(1);
 document.getElementById('bn2').textContent=b2.bounces;
@@ -1339,6 +1453,7 @@ run=0;
 p1Wins++;
 totalRaces++;
 gameTime=(Date.now()-startTime)/1000;
+showCommentary(getRandomWinMessage('Speedy','Big Belly',gameTime),'p1');
 document.getElementById('winner1').classList.add('show');
 document.getElementById('p1wins').textContent=p1Wins;
 document.getElementById('p2wins').textContent=p2Wins;
@@ -1353,6 +1468,7 @@ run=0;
 p2Wins++;
 totalRaces++;
 gameTime=(Date.now()-startTime)/1000;
+showCommentary(getRandomWinMessage('Big Belly','Speedy',gameTime),'p2');
 document.getElementById('winner2').classList.add('show');
 document.getElementById('p1wins').textContent=p1Wins;
 document.getElementById('p2wins').textContent=p2Wins;
@@ -1366,7 +1482,6 @@ if(run)requestAnimationFrame(draw);
 }
 
 function reset(){
-generateCards();
 p1PowerupActive=false;
 p2PowerupActive=false;
 p1InstantCooldown=0;
@@ -1388,11 +1503,13 @@ chaosEnd=0;
 chaosInitiator=0;
 cardRevealQueue=[];
 isShowingCardReveal=false;
-document.getElementById('timelineCenter').innerHTML='';
+closeRaceLogged=false;
+lastCritTime1=0;
+lastCritTime2=0;
+speedHistory1=[];
+speedHistory2=[];
 document.getElementById('powerup1').style.display='none';
 document.getElementById('powerup2').style.display='none';
-document.getElementById('winner1').classList.remove('show');
-document.getElementById('winner2').classList.remove('show');
 var startX1=130+Math.random()*40;
 var startX2=130+Math.random()*40;
 var startVy1=sp1+(Math.random()-0.5)*0.5;
@@ -1434,6 +1551,12 @@ document.querySelectorAll('.card-item').forEach(function(c){c.classList.remove('
 }
 });
 
+document.addEventListener('visibilitychange',function(){
+if(document.hidden&&run&&!win&&!isPaused){
+togglePause();
+}
+});
+
 generateCards();
 o1=makeObs();
 o2=makeObs();
@@ -1463,6 +1586,10 @@ countdown--;
 document.getElementById('timerText').textContent=countdown;
 if(countdown<=0){
 clearInterval(countdownInterval);
+generateCards();
+document.getElementById('timelineCenter').innerHTML='';
+document.getElementById('winner1').classList.remove('show');
+document.getElementById('winner2').classList.remove('show');
 run=1;
 isPaused=false;
 startTime=Date.now();
@@ -1480,16 +1607,44 @@ draw();
 }
 }
 
+function getCountdownTrashTalk(){
+var messages=[
+{player:'p1',text:`Speedy: "Ready to eat my dust?" 💨`},
+{player:'p2',text:`Big Belly: "I'm gonna crush you!" 💪`},
+{player:'p1',text:`Speedy: "Speed kills, buddy!" ⚡`},
+{player:'p2',text:`Big Belly: "Slow and steady wins!" 🐢`},
+{player:'p1',text:`Speedy: "Can't catch what you can't see!" 👻`},
+{player:'p2',text:`Big Belly: "Size matters!" 😤`},
+{player:'p1',text:`Speedy: "I was born ready!" 😎`},
+{player:'p2',text:`Big Belly: "Bring it on!" 🔥`}
+];
+return messages[Math.floor(Math.random()*messages.length)];
+}
+
 function startRace(){
 countdown=10;
 var timerBox=document.getElementById('timerBox');
 timerBox.style.background='linear-gradient(135deg,#667eea,#f5576c)';
 timerBox.style.color='#fff';
+var trashTalkShown=false;
 countdownInterval=setInterval(function(){
 countdown--;
 document.getElementById('timerText').textContent=countdown;
+if(countdown===7&&!trashTalkShown){
+var trash=getCountdownTrashTalk();
+showCommentary(trash.text,trash.player);
+trashTalkShown=true;
+}
+if(countdown===3){
+var trash2=getCountdownTrashTalk();
+showCommentary(trash2.text,trash2.player);
+}
 if(countdown<=0){
 clearInterval(countdownInterval);
+generateCards();
+document.getElementById('timelineCenter').innerHTML='';
+document.getElementById('winner1').classList.remove('show');
+document.getElementById('winner2').classList.remove('show');
 run=1;
 isPaused=false;
 startTime=Date.now();
