@@ -305,20 +305,13 @@ if(cardIndex>=0&&cardIndex<p1Cards.length){
 var cardType=p1Cards[cardIndex];
 card1.title=cardDescriptions[cardType]||cardType.toUpperCase();
 card1.style.cursor='pointer';
-card1.onclick=(function(idx){
+card1.onclick=(function(type){
 return function(){
-if(p1Cards.length>0&&!win){
-for(var j=0;j<CARD_MILESTONES.length;j++){
-if(!p1CardsUsed[j]){
-p1CardsUsed[j]=true;
-usePowerup(1);
-updateCardDisplay();
-break;
-}
-}
+if(!win){
+showCardReveal(1,type);
 }
 };
-})(i);
+})(cardType);
 }
 }
 }
@@ -335,20 +328,13 @@ if(cardIndex>=0&&cardIndex<p2Cards.length){
 var cardType=p2Cards[cardIndex];
 card2.title=cardDescriptions[cardType]||cardType.toUpperCase();
 card2.style.cursor='pointer';
-card2.onclick=(function(idx){
+card2.onclick=(function(type){
 return function(){
-if(p2Cards.length>0&&!win){
-for(var j=0;j<CARD_MILESTONES.length;j++){
-if(!p2CardsUsed[j]){
-p2CardsUsed[j]=true;
-usePowerup(2);
-updateCardDisplay();
-break;
-}
-}
+if(!win){
+showCardReveal(2,type);
 }
 };
-})(i);
+})(cardType);
 }
 }
 }
